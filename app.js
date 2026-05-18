@@ -3,6 +3,9 @@ const CODE_LENGTH = 6;
 const els = {
   tabButtons: [...document.querySelectorAll(".tab-button")],
   tabPanels: [...document.querySelectorAll(".tab-panel")],
+  panelStage: document.querySelector(".panel-stage"),
+  tabRow: document.querySelector(".tab-row"),
+  tabIndicator: document.querySelector(".tab-indicator"),
   clipText: document.querySelector("#clip-text"),
   pasteButton: document.querySelector("#paste-button"),
   sendButton: document.querySelector("#send-button"),
@@ -21,6 +24,7 @@ const els = {
 function setStatus(element, message, tone = "") {
   element.textContent = message;
   element.className = "status";
+  element.classList.toggle("has-message", Boolean(message));
 
   if (tone === "success") {
     element.classList.add("is-success");
@@ -31,12 +35,24 @@ function setStatus(element, message, tone = "") {
   }
 }
 
+function setResultCardVisibility(element, isVisible) {
+  element.classList.toggle("hidden", false);
+  element.classList.toggle("is-visible", isVisible);
+  requestAnimationFrame(syncPanelStageHeight);
+}
+
 function setLoading(button, isLoading, label) {
   button.disabled = isLoading;
   button.textContent = isLoading ? label : button.dataset.defaultLabel;
 }
 
 function showPanel(panelId) {
+  const nextButton = els.tabButtons.find((button) => button.dataset.panel === panelId);
+
+  if (!nextButton || nextButton.classList.contains("is-active")) {
+    return;
+  }
+
   els.tabButtons.forEach((button) => {
     const active = button.dataset.panel === panelId;
     button.classList.toggle("is-active", active);
@@ -46,6 +62,35 @@ function showPanel(panelId) {
   els.tabPanels.forEach((panel) => {
     panel.classList.toggle("is-active", panel.id === panelId);
   });
+
+  els.panelStage.dataset.activePanel = panelId;
+  syncTabIndicator();
+  syncPanelStageHeight();
+}
+
+function syncTabIndicator() {
+  const activeButton = els.tabButtons.find((button) => button.classList.contains("is-active"));
+
+  if (!activeButton || !els.tabIndicator || !els.tabRow) {
+    return;
+  }
+
+  const rowRect = els.tabRow.getBoundingClientRect();
+  const buttonRect = activeButton.getBoundingClientRect();
+  const x = buttonRect.left - rowRect.left;
+
+  els.tabIndicator.style.width = `${buttonRect.width}px`;
+  els.tabIndicator.style.transform = `translate3d(${x}px, 0, 0)`;
+}
+
+function syncPanelStageHeight() {
+  const activePanel = els.tabPanels.find((panel) => panel.classList.contains("is-active"));
+
+  if (!activePanel || !els.panelStage) {
+    return;
+  }
+
+  els.panelStage.style.height = `${activePanel.scrollHeight + 22}px`;
 }
 
 async function copyText(value, successMessage) {
@@ -99,7 +144,7 @@ async function sendClip() {
   }
 
   setLoading(els.sendButton, true, "Sending...");
-  els.shareResult.classList.add("hidden");
+  setResultCardVisibility(els.shareResult, false);
   setStatus(els.sendStatus, "Encrypting and uploading text...", "");
 
   try {
@@ -109,7 +154,7 @@ async function sendClip() {
     });
 
     els.shareCode.textContent = payload.code;
-    els.shareResult.classList.remove("hidden");
+    setResultCardVisibility(els.shareResult, true);
     setStatus(els.sendStatus, "Clipboard saved. Share the code.", "success");
   } catch (error) {
     setStatus(els.sendStatus, error.message, "error");
@@ -127,7 +172,7 @@ async function retrieveClip() {
   }
 
   setLoading(els.retrieveButton, true, "Loading...");
-  els.retrievedResult.classList.add("hidden");
+  setResultCardVisibility(els.retrievedResult, false);
   setStatus(els.receiveStatus, "Retrieving text...", "");
 
   try {
@@ -137,7 +182,7 @@ async function retrieveClip() {
     });
 
     els.retrievedText.value = payload.text || "";
-    els.retrievedResult.classList.remove("hidden");
+    setResultCardVisibility(els.retrievedResult, true);
     setStatus(els.receiveStatus, "Text retrieved.", "success");
   } catch (error) {
     setStatus(els.receiveStatus, error.message, "error");
@@ -186,3 +231,9 @@ function primeButtons() {
 
 primeButtons();
 attachEvents();
+syncTabIndicator();
+syncPanelStageHeight();
+window.addEventListener("resize", () => {
+  syncTabIndicator();
+  syncPanelStageHeight();
+});
