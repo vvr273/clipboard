@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClipDrop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <p class="eyebrow">Zero-budget online clipboard</p>
+        <h1>Paste once. Share with a code. Retrieve anywhere.</h1>
+        <p class="hero-copy">
+          Send text from one device and open it on another with a short code.
+        </p>
+      </header>
+
+      <main class="board">
+        <section class="panel panel-accent">
+          <div class="tab-row" role="tablist" aria-label="Clipboard actions">
+            <button class="tab-button is-active" id="send-tab" data-panel="send-panel" role="tab" aria-selected="true">
+              Send
+            </button>
+            <button class="tab-button" id="receive-tab" data-panel="receive-panel" role="tab" aria-selected="false">
+              Receive
+            </button>
+          </div>
+
+          <section class="tab-panel is-active" id="send-panel" role="tabpanel" aria-labelledby="send-tab">
+            <label class="field-label" for="clip-text">Text to share</label>
+            <textarea
+              id="clip-text"
+              class="text-input"
+              placeholder="Paste anything here..."
+              rows="10"
+            ></textarea>
+
+            <div class="toolbar">
+              <button id="paste-button" class="button button-muted" type="button">Paste</button>
+              <button id="send-button" class="button button-primary" type="button">Send</button>
+            </div>
+
+            <div id="send-status" class="status" aria-live="polite"></div>
+
+            <div id="share-result" class="result-card hidden">
+              <p class="result-label">Share this code</p>
+              <div class="code-row">
+                <strong id="share-code" class="share-code">------</strong>
+                <button id="copy-code-button" class="button button-muted" type="button">Copy code</button>
+              </div>
+              <p class="result-note">The receiver can open this same page, choose Receive, and enter the code.</p>
+            </div>
+          </section>
+
+          <section class="tab-panel" id="receive-panel" role="tabpanel" aria-labelledby="receive-tab">
+            <label class="field-label" for="receive-code">Enter code</label>
+            <input
+              id="receive-code"
+              class="code-input"
+              type="text"
+              maxlength="6"
+              placeholder="ABC123"
+              autocomplete="off"
+            />
+
+            <div class="toolbar">
+              <button id="retrieve-button" class="button button-primary" type="button">Retrieve</button>
+            </div>
+
+            <div id="receive-status" class="status" aria-live="polite"></div>
+
+            <div id="retrieved-result" class="result-card hidden">
+              <p class="result-label">Retrieved text</p>
+              <textarea id="retrieved-text" class="text-input retrieved-text" rows="10" readonly></textarea>
+              <div class="toolbar">
+                <button id="copy-text-button" class="button button-primary" type="button">Copy text</button>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <aside class="panel panel-side">
+          <p class="mini-title">How it works</p>
+          <ol class="steps">
+            <li>Paste text and click Send.</li>
+            <li>A short code is generated and stored online.</li>
+            <li>On the second device, open the same page and click Receive.</li>
+            <li>Enter the code, retrieve the text, and copy it.</li>
+          </ol>
+
+          <div class="note-box">
+            <p class="mini-title">Free setup</p>
+            <p>
+              This UI is static. For real cross-device sharing, connect it to Firebase
+              on the free Spark plan and deploy on GitHub Pages, Netlify, or Vercel.
+            </p>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <script src="./env.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
