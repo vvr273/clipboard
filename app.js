@@ -1,4 +1,5 @@
 const CODE_LENGTH = 6;
+const DEFAULT_THEME_COLOR = "#ef6c33";
 
 const els = {
   tabButtons: [...document.querySelectorAll(".tab-button")],
@@ -6,7 +7,7 @@ const els = {
   panelStage: document.querySelector(".panel-stage"),
   tabRow: document.querySelector(".tab-row"),
   tabIndicator: document.querySelector(".tab-indicator"),
-  themeSwatches: [...document.querySelectorAll(".theme-swatch")],
+  themeColorInput: document.querySelector("#theme-color-input"),
   clipText: document.querySelector("#clip-text"),
   pasteButton: document.querySelector("#paste-button"),
   sendButton: document.querySelector("#send-button"),
@@ -94,26 +95,111 @@ function syncPanelStageHeight() {
   els.panelStage.style.height = `${activePanel.scrollHeight + 22}px`;
 }
 
-function applyTheme(themeName) {
-  document.body.dataset.theme = themeName;
+function hexToRgb(hex) {
+  const normalized = hex.replace("#", "");
+  const value = normalized.length === 3
+    ? normalized.split("").map((char) => char + char).join("")
+    : normalized;
 
-  els.themeSwatches.forEach((swatch) => {
-    const isActive = swatch.dataset.theme === themeName;
-    swatch.classList.toggle("is-active", isActive);
-    swatch.setAttribute("aria-pressed", String(isActive));
+  const int = parseInt(value, 16);
+
+  return {
+    r: (int >> 16) & 255,
+    g: (int >> 8) & 255,
+    b: int & 255,
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  return `#${[r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function mixRgb(colorA, colorB, ratio) {
+  return {
+    r: Math.round(colorA.r * (1 - ratio) + colorB.r * ratio),
+    g: Math.round(colorA.g * (1 - ratio) + colorB.g * ratio),
+    b: Math.round(colorA.b * (1 - ratio) + colorB.b * ratio),
+  };
+}
+
+function rgbaString(rgb, alpha) {
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+}
+
+function rgbString(rgb) {
+  return `${rgb.r}, ${rgb.g}, ${rgb.b}`;
+}
+
+function getLuminance({ r, g, b }) {
+  const channels = [r, g, b].map((value) => {
+    const channel = value / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
   });
 
-  localStorage.setItem("clipdrop-theme", themeName);
+  return (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
+}
+
+function applyTheme(hexColor) {
+  const accent = hexToRgb(hexColor);
+  const white = { r: 255, g: 255, b: 255 };
+  const dark = { r: 24, g: 23, b: 28 };
+  const deepInk = { r: 28, g: 27, b: 36 };
+  const softInk = { r: 94, g: 92, b: 109 };
+  const lightBg = mixRgb(accent, white, 0.9);
+  const bgEnd = mixRgb(accent, white, 0.82);
+  const accentDeep = mixRgb(accent, dark, 0.28);
+  const accentSoft = mixRgb(accent, white, 0.72);
+  const surfaceTone = mixRgb(accent, white, 0.94);
+  const bgIsLight = getLuminance(lightBg) > 0.64;
+  const text = bgIsLight ? rgbToHex(deepInk) : "#fffaf6";
+  const muted = bgIsLight ? rgbToHex(softInk) : "rgba(255, 250, 246, 0.82)";
+  const line = bgIsLight ? "rgba(255, 255, 255, 0.34)" : "rgba(255, 255, 255, 0.22)";
+  const surface = bgIsLight ? rgbaString(white, 0.42) : rgbaString(surfaceTone, 0.34);
+  const surfaceStrong = bgIsLight ? rgbaString(white, 0.72) : rgbaString(surfaceTone, 0.56);
+  const mutedButtonBg = bgIsLight ? rgbaString(white, 0.34) : rgbaString(surfaceTone, 0.3);
+  const pickerText = bgIsLight ? text : "#fffaf6";
+  const accentTitle = bgIsLight ? rgbToHex(accentDeep) : rgbToHex(mixRgb(accent, white, 0.32));
+
+  document.body.style.setProperty("--bg", rgbToHex(lightBg));
+  document.body.style.setProperty("--bg-end", rgbToHex(bgEnd));
+  document.body.style.setProperty("--surface", surface);
+  document.body.style.setProperty("--surface-strong", surfaceStrong);
+  document.body.style.setProperty("--text", text);
+  document.body.style.setProperty("--muted", muted);
+  document.body.style.setProperty("--line", line);
+  document.body.style.setProperty("--accent", hexColor);
+  document.body.style.setProperty("--accent-deep", accentTitle);
+  document.body.style.setProperty("--accent-soft", rgbToHex(accentSoft));
+  document.body.style.setProperty("--accent-rgb", rgbString(accent));
+  document.body.style.setProperty("--accent-soft-rgb", rgbString(accentSoft));
+  document.body.style.setProperty("--glow-a", rgbaString(accent, 0.28));
+  document.body.style.setProperty("--glow-b", rgbaString(accentSoft, 0.42));
+  document.body.style.setProperty("--glow-c", rgbaString(white, 0.34));
+  document.body.style.setProperty("--shadow", `0 30px 80px rgba(${accentDeep.r}, ${accentDeep.g}, ${accentDeep.b}, 0.16)`);
+  document.body.style.setProperty("--tab-shell-top", rgbaString(white, 0.38));
+  document.body.style.setProperty("--tab-shell-bottom", rgbaString(accentSoft, 0.18));
+  document.body.style.setProperty("--tab-indicator-top", rgbaString(white, 0.92));
+  document.body.style.setProperty("--tab-indicator-mid", rgbaString(mixRgb(accentSoft, white, 0.35), 0.66));
+  document.body.style.setProperty("--tab-indicator-bottom", rgbaString(accentSoft, 0.78));
+  document.body.style.setProperty("--tab-indicator-shadow", rgbaString(accentDeep, 0.16));
+  document.body.style.setProperty("--tab-indicator-glow", rgbaString(accentSoft, 0.48));
+  document.body.style.setProperty("--button-muted-bg", mutedButtonBg);
+  document.body.style.setProperty("--button-primary-top", rgbToHex(mixRgb(accent, white, 0.18)));
+  document.body.style.setProperty("--button-primary-bottom", hexColor);
+  document.body.style.setProperty("--button-primary-top-hover", rgbToHex(mixRgb(accent, white, 0.26)));
+  document.body.style.setProperty("--button-primary-bottom-hover", rgbToHex(mixRgb(accent, dark, 0.16)));
+  document.body.style.setProperty("--button-primary-text", getLuminance(accent) > 0.55 ? "#102019" : "#fffaf6");
+  document.body.style.setProperty("--theme-picker-text", pickerText);
+
+  els.themeColorInput.value = hexColor;
+  localStorage.setItem("clipdrop-theme-color", hexColor);
   requestAnimationFrame(syncTabIndicator);
 }
 
 function initThemePicker() {
-  const savedTheme = localStorage.getItem("clipdrop-theme") || "apricot";
-  applyTheme(savedTheme);
-
-  els.themeSwatches.forEach((swatch) => {
-    swatch.addEventListener("click", () => applyTheme(swatch.dataset.theme));
-  });
+  const savedThemeColor = localStorage.getItem("clipdrop-theme-color") || DEFAULT_THEME_COLOR;
+  applyTheme(savedThemeColor);
+  els.themeColorInput.addEventListener("input", (event) => applyTheme(event.target.value));
 }
 
 async function copyText(value, successMessage) {
