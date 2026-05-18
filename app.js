@@ -6,6 +6,7 @@ const els = {
   panelStage: document.querySelector(".panel-stage"),
   tabRow: document.querySelector(".tab-row"),
   tabIndicator: document.querySelector(".tab-indicator"),
+  themeSwatches: [...document.querySelectorAll(".theme-swatch")],
   clipText: document.querySelector("#clip-text"),
   pasteButton: document.querySelector("#paste-button"),
   sendButton: document.querySelector("#send-button"),
@@ -91,6 +92,28 @@ function syncPanelStageHeight() {
   }
 
   els.panelStage.style.height = `${activePanel.scrollHeight + 22}px`;
+}
+
+function applyTheme(themeName) {
+  document.body.dataset.theme = themeName;
+
+  els.themeSwatches.forEach((swatch) => {
+    const isActive = swatch.dataset.theme === themeName;
+    swatch.classList.toggle("is-active", isActive);
+    swatch.setAttribute("aria-pressed", String(isActive));
+  });
+
+  localStorage.setItem("clipdrop-theme", themeName);
+  requestAnimationFrame(syncTabIndicator);
+}
+
+function initThemePicker() {
+  const savedTheme = localStorage.getItem("clipdrop-theme") || "apricot";
+  applyTheme(savedTheme);
+
+  els.themeSwatches.forEach((swatch) => {
+    swatch.addEventListener("click", () => applyTheme(swatch.dataset.theme));
+  });
 }
 
 async function copyText(value, successMessage) {
@@ -231,6 +254,7 @@ function primeButtons() {
 
 primeButtons();
 attachEvents();
+initThemePicker();
 syncTabIndicator();
 syncPanelStageHeight();
 window.addEventListener("resize", () => {
