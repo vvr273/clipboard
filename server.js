@@ -12,7 +12,7 @@ dotenv.config();
 const PORT = Number(process.env.PORT || 3000);
 const MONGODB_URI = process.env.MONGODB_URI;
 const CLIP_ENCRYPTION_KEY = process.env.CLIP_ENCRYPTION_KEY;
-const CLIP_TTL_HOURS = Number(process.env.CLIP_TTL_HOURS || 24);
+const CLIP_TTL_MINUTES = Number(process.env.CLIP_TTL_MINUTES || 30);
 const MAX_TEXT_LENGTH = Number(process.env.MAX_TEXT_LENGTH || 50000);
 const CODE_LENGTH = 6;
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -81,7 +81,7 @@ function createCode() {
 }
 
 function nextExpiryDate() {
-  return new Date(Date.now() + CLIP_TTL_HOURS * 60 * 60 * 1000);
+  return new Date(Date.now() + CLIP_TTL_MINUTES * 60 * 1000);
 }
 
 function encryptText(plainText) {

@@ -29,7 +29,7 @@ cp .env.example .env
 - `PORT`: local server port
 - `MONGODB_URI`: MongoDB connection string
 - `CLIP_ENCRYPTION_KEY`: 64-character hex key used for AES-256-GCM
-- `CLIP_TTL_HOURS`: how long a code stays valid
+- `CLIP_TTL_MINUTES`: how long a code stays valid
 - `MAX_TEXT_LENGTH`: max clipboard payload size
 
 Generate a strong encryption key with:
