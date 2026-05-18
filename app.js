@@ -95,6 +95,11 @@ function syncPanelStageHeight() {
   els.panelStage.style.height = `${activePanel.scrollHeight + 22}px`;
 }
 
+function autoGrowTextarea(textarea) {
+  textarea.style.height = "0px";
+  textarea.style.height = `${Math.max(textarea.scrollHeight, 220)}px`;
+}
+
 function hexToRgb(hex) {
   const normalized = hex.replace("#", "");
   const value = normalized.length === 3
@@ -217,6 +222,8 @@ async function pasteIntoSender() {
     }
 
     els.clipText.value = text;
+    autoGrowTextarea(els.clipText);
+    syncPanelStageHeight();
     setStatus(els.sendStatus, "Pasted from clipboard.", "success");
   } catch (error) {
     setStatus(
@@ -330,6 +337,11 @@ function attachEvents() {
   els.receiveCode.addEventListener("input", () => {
     els.receiveCode.value = els.receiveCode.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
   });
+
+  els.clipText.addEventListener("input", () => {
+    autoGrowTextarea(els.clipText);
+    syncPanelStageHeight();
+  });
 }
 
 function primeButtons() {
@@ -341,9 +353,18 @@ function primeButtons() {
 primeButtons();
 attachEvents();
 initThemePicker();
+autoGrowTextarea(els.clipText);
 syncTabIndicator();
 syncPanelStageHeight();
 window.addEventListener("resize", () => {
   syncTabIndicator();
   syncPanelStageHeight();
 });
+
+const resizeObserver = new ResizeObserver(() => {
+  syncPanelStageHeight();
+  syncTabIndicator();
+});
+
+resizeObserver.observe(els.panelStage);
+els.tabPanels.forEach((panel) => resizeObserver.observe(panel));
