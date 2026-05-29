@@ -71,6 +71,7 @@ function parseCodeFromValue(value) {
   }
 
   try {
+    // QR scans may contain the raw 6-character code or a full deep link back to this page.
     const parsedUrl = new URL(value);
     const queryCode = normalizeCode(parsedUrl.searchParams.get("code") || "");
 
@@ -388,6 +389,7 @@ function scanVideoFrame() {
   const canvas = els.scannerCanvas;
   const context = canvas.getContext("2d", { willReadFrequently: true });
 
+  // Read each camera frame into a hidden canvas so jsQR can inspect the pixel buffer.
   canvas.width = els.scannerVideo.videoWidth;
   canvas.height = els.scannerVideo.videoHeight;
   context.drawImage(els.scannerVideo, 0, 0, canvas.width, canvas.height);
