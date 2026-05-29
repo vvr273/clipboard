@@ -1,3 +1,7 @@
 node_modules/
 .env
 env.js
+.playwright-mcp/
+.vscode/
+loadtest/
+tab-centering-check.png
