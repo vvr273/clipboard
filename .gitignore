@@ -5,3 +5,4 @@ env.js
 .vscode/
 loadtest/
 tab-centering-check.png
+loadtest/latest-summary.txt
