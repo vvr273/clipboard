@@ -14,13 +14,24 @@ const els = {
   sendStatus: document.querySelector("#send-status"),
   shareResult: document.querySelector("#share-result"),
   shareCode: document.querySelector("#share-code"),
+  shareQrImage: document.querySelector("#share-qr-image"),
   copyCodeButton: document.querySelector("#copy-code-button"),
   receiveCode: document.querySelector("#receive-code"),
+  scanQrButton: document.querySelector("#scan-qr-button"),
+  scannerCard: document.querySelector("#scanner-card"),
+  scannerVideo: document.querySelector("#scanner-video"),
+  scannerCanvas: document.querySelector("#scanner-canvas"),
+  stopScanButton: document.querySelector("#stop-scan-button"),
   retrieveButton: document.querySelector("#retrieve-button"),
   receiveStatus: document.querySelector("#receive-status"),
   retrievedResult: document.querySelector("#retrieved-result"),
   retrievedText: document.querySelector("#retrieved-text"),
   copyTextButton: document.querySelector("#copy-text-button"),
+};
+
+const scanner = {
+  animationFrame: null,
+  stream: null,
 };
 
 function setStatus(element, message, tone = "") {
@@ -46,6 +57,31 @@ function setResultCardVisibility(element, isVisible) {
 function setLoading(button, isLoading, label) {
   button.disabled = isLoading;
   button.textContent = isLoading ? label : button.dataset.defaultLabel;
+}
+
+function normalizeCode(value) {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, CODE_LENGTH);
+}
+
+function parseCodeFromValue(value) {
+  const directCode = normalizeCode(value);
+
+  if (directCode.length === CODE_LENGTH) {
+    return directCode;
+  }
+
+  try {
+    const parsedUrl = new URL(value);
+    const queryCode = normalizeCode(parsedUrl.searchParams.get("code") || "");
+
+    if (queryCode.length === CODE_LENGTH) {
+      return queryCode;
+    }
+  } catch (error) {
+    return "";
+  }
+
+  return "";
 }
 
 function showPanel(panelId) {
@@ -77,11 +113,10 @@ function syncTabIndicator() {
     return;
   }
 
-  const rowRect = els.tabRow.getBoundingClientRect();
-  const buttonRect = activeButton.getBoundingClientRect();
-  const x = buttonRect.left - rowRect.left;
+  const indicatorLeft = Number.parseFloat(getComputedStyle(els.tabIndicator).left) || 0;
+  const x = activeButton.offsetLeft - indicatorLeft;
 
-  els.tabIndicator.style.width = `${buttonRect.width}px`;
+  els.tabIndicator.style.width = `${activeButton.offsetWidth}px`;
   els.tabIndicator.style.transform = `translate3d(${x}px, 0, 0)`;
 }
 
@@ -270,6 +305,8 @@ async function sendClip() {
     });
 
     els.shareCode.textContent = payload.code;
+    els.shareQrImage.src = `/api/qr/${encodeURIComponent(payload.code)}`;
+    els.shareQrImage.alt = `QR code for share code ${payload.code}`;
     setResultCardVisibility(els.shareResult, true);
     setStatus(els.sendStatus, "Clipboard saved. Share the code.", "success");
   } catch (error) {
@@ -307,6 +344,94 @@ async function retrieveClip() {
   }
 }
 
+function stopScanner() {
+  if (scanner.animationFrame) {
+    cancelAnimationFrame(scanner.animationFrame);
+    scanner.animationFrame = null;
+  }
+
+  if (scanner.stream) {
+    scanner.stream.getTracks().forEach((track) => track.stop());
+    scanner.stream = null;
+  }
+
+  if (els.scannerVideo) {
+    els.scannerVideo.pause();
+    els.scannerVideo.srcObject = null;
+  }
+
+  if (els.scannerCard) {
+    setResultCardVisibility(els.scannerCard, false);
+  }
+}
+
+function handleScannedCode(rawValue) {
+  const code = parseCodeFromValue(rawValue);
+
+  if (code.length !== CODE_LENGTH) {
+    return false;
+  }
+
+  els.receiveCode.value = code;
+  stopScanner();
+  setStatus(els.receiveStatus, "QR scanned. Retrieving text...", "success");
+  retrieveClip();
+  return true;
+}
+
+function scanVideoFrame() {
+  if (!scanner.stream || !els.scannerVideo.videoWidth || !window.jsQR) {
+    scanner.animationFrame = requestAnimationFrame(scanVideoFrame);
+    return;
+  }
+
+  const canvas = els.scannerCanvas;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+
+  canvas.width = els.scannerVideo.videoWidth;
+  canvas.height = els.scannerVideo.videoHeight;
+  context.drawImage(els.scannerVideo, 0, 0, canvas.width, canvas.height);
+
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  const result = window.jsQR(imageData.data, imageData.width, imageData.height);
+
+  if (result?.data && handleScannedCode(result.data)) {
+    return;
+  }
+
+  scanner.animationFrame = requestAnimationFrame(scanVideoFrame);
+}
+
+async function startScanner() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setStatus(els.receiveStatus, "Camera scanning is not supported in this browser.", "error");
+    return;
+  }
+
+  stopScanner();
+  setResultCardVisibility(els.scannerCard, true);
+  setStatus(els.receiveStatus, "Opening camera for QR scan...", "");
+
+  try {
+    scanner.stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: {
+          ideal: "environment",
+        },
+      },
+      audio: false,
+    });
+
+    els.scannerVideo.srcObject = scanner.stream;
+    await els.scannerVideo.play();
+    setStatus(els.receiveStatus, "Point the camera at the QR code.", "");
+    scanner.animationFrame = requestAnimationFrame(scanVideoFrame);
+  } catch (error) {
+    stopScanner();
+    setStatus(els.receiveStatus, "Camera access was blocked. Allow camera permission and try again.", "error");
+  }
+}
+
 function attachEvents() {
   els.tabButtons.forEach((button) => {
     button.addEventListener("click", () => showPanel(button.dataset.panel));
@@ -314,6 +439,11 @@ function attachEvents() {
 
   els.pasteButton.addEventListener("click", pasteIntoSender);
   els.sendButton.addEventListener("click", sendClip);
+  els.scanQrButton.addEventListener("click", startScanner);
+  els.stopScanButton.addEventListener("click", () => {
+    stopScanner();
+    setStatus(els.receiveStatus, "QR scan stopped.", "");
+  });
   els.retrieveButton.addEventListener("click", retrieveClip);
 
   els.copyCodeButton.addEventListener("click", async () => {
@@ -335,7 +465,7 @@ function attachEvents() {
   });
 
   els.receiveCode.addEventListener("input", () => {
-    els.receiveCode.value = els.receiveCode.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    els.receiveCode.value = normalizeCode(els.receiveCode.value);
   });
 
   els.clipText.addEventListener("input", () => {
@@ -350,9 +480,28 @@ function primeButtons() {
   });
 }
 
+function initQrPrefill() {
+  const params = new URLSearchParams(window.location.search);
+  const code = parseCodeFromValue(params.get("code") || "");
+  const panel = params.get("panel");
+
+  if (panel === "receive-panel" || panel === "receive") {
+    showPanel("receive-panel");
+  }
+
+  if (!code) {
+    return;
+  }
+
+  els.receiveCode.value = code;
+  showPanel("receive-panel");
+  setStatus(els.receiveStatus, "Code loaded from QR link. Tap Retrieve to fetch the text.", "success");
+}
+
 primeButtons();
 attachEvents();
 initThemePicker();
+initQrPrefill();
 autoGrowTextarea(els.clipText);
 syncTabIndicator();
 syncPanelStageHeight();
@@ -368,3 +517,4 @@ const resizeObserver = new ResizeObserver(() => {
 
 resizeObserver.observe(els.panelStage);
 els.tabPanels.forEach((panel) => resizeObserver.observe(panel));
+window.addEventListener("beforeunload", stopScanner);
