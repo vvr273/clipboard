@@ -6,6 +6,7 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const mongoose = require("mongoose");
+const QRCode = require("qrcode");
 
 dotenv.config();
 
@@ -225,6 +226,32 @@ async function main() {
       response.json({ text });
     } catch (error) {
       response.status(500).json({ error: "Could not retrieve the clipboard text." });
+    }
+  });
+
+  app.get("/api/qr/:code", async (request, response) => {
+    const code = typeof request.params?.code === "string" ? request.params.code.trim().toUpperCase() : "";
+
+    if (!/^[A-Z0-9]{6}$/.test(code)) {
+      response.status(400).json({ error: "Enter the 6-character code." });
+      return;
+    }
+
+    try {
+      const qrPayload = `${request.protocol}://${request.get("host")}/?code=${encodeURIComponent(code)}&panel=receive`;
+      const svg = await QRCode.toString(qrPayload, {
+        type: "svg",
+        width: 320,
+        margin: 1,
+        color: {
+          dark: "#1f1c1a",
+          light: "#ffffff",
+        },
+      });
+
+      response.type("image/svg+xml").send(svg);
+    } catch (error) {
+      response.status(500).json({ error: "Could not generate the QR code." });
     }
   });
 
