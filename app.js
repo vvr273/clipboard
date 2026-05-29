@@ -64,12 +64,6 @@ function normalizeCode(value) {
 }
 
 function parseCodeFromValue(value) {
-  const directCode = normalizeCode(value);
-
-  if (directCode.length === CODE_LENGTH) {
-    return directCode;
-  }
-
   try {
     // QR scans may contain the raw 6-character code or a full deep link back to this page.
     const parsedUrl = new URL(value);
@@ -79,7 +73,11 @@ function parseCodeFromValue(value) {
       return queryCode;
     }
   } catch (error) {
-    return "";
+    const directCode = normalizeCode(value);
+
+    if (directCode.length === CODE_LENGTH) {
+      return directCode;
+    }
   }
 
   return "";
